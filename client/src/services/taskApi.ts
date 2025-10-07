@@ -1,4 +1,4 @@
-import type { Task } from '../types/task'; 
+import type { Task } from '../types/task';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -8,12 +8,12 @@ export const taskApi = {
     if (!response.ok) throw new Error('Failed to fetch tasks');
     return response.json();
   },
-
-  async createTask(title: string, priority: 'low' | 'medium' | 'high'): Promise<Task> {
+  
+  async createTask(title: string, priority: 'low' | 'medium' | 'high', dueDate?: string): Promise<Task> {
     const response = await fetch(`${API_BASE}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, priority })
+      body: JSON.stringify({ title, priority, dueDate })
     });
     if (!response.ok) throw new Error('Failed to create task');
     return response.json();

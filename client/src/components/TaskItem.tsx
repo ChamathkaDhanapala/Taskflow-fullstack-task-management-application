@@ -1,90 +1,302 @@
-import React, { useState } from "react";
-import type { Task } from '../types/task'; 
+import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../contexts/ThemeContext";
+import type { Task } from "../types/task";
 
 interface Props {
-  task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onEdit: (id: string, updates: Partial<Task>) => void;
+    task: Task;
+    onToggle: (id: string) => void;
+    onDelete: (id: string) => void;
+    onEdit: (id: string, updates: Partial<Task>) => void;
+    isDragging?: boolean;
 }
 
-const TaskItem: React.FC<Props> = ({ task, onToggle, onDelete, onEdit }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(task.title);
+const TaskItem: React.FC<Props> = ({
+    task,
+    onToggle,
+    onDelete,
+    onEdit,
+    isDragging = false
+}) => {
+    const { theme } = useTheme();
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState(task.title);
+    const [justCompleted, setJustCompleted] = useState(false);
+    const itemRef = useRef<HTMLDivElement>(null);
 
-  const handleSave = () => {
-    const trimmed = editTitle.trim();
-    if (trimmed) {
-      onEdit(task.id, { title: trimmed });
-    }
-    setIsEditing(false);
-  };
+    // Fade-in animation when task is created
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (itemRef.current) {
+                itemRef.current.classList.add('fade-in');
+            }
+        }, 100);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+        return () => clearTimeout(timer);
+    }, []);
 
-  return (
-    <li className="bg-white border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
-          <input
-            type="checkbox"
-            checked={task.completed}
-            onChange={() => onToggle(task.id)}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          
-          <div className="flex-1 min-w-0">
-            {isEditing ? (
-              <input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={handleSave}
-                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                className="w-full px-2 py-1 border border-blue-500 rounded focus:outline-none"
-                autoFocus
-              />
-            ) : (
-              <div className="flex items-center space-x-2">
-                <span
-                  className={`block truncate ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}
-                  onDoubleClick={() => setIsEditing(true)}
-                >
-                  {task.title}
-                </span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}>
-                  {task.priority}
-                </span>
-              </div>
-            )}
-          </div>
+    const handleSave = () => {
+        const trimmed = editTitle.trim();
+        if (trimmed) {
+            onEdit(task.id, { title: trimmed });
+        }
+        setIsEditing(false);
+    };
+
+    const handleToggle = () => {
+        setJustCompleted(!task.completed);
+
+        // Add completion animation
+        if (!task.completed) {
+            const timer = setTimeout(() => {
+                onToggle(task.id);
+            }, 300);
+            return () => clearTimeout(timer);
+        } else {
+            onToggle(task.id);
+        }
+    };
+
+    const handleDelete = () => {
+        if (itemRef.current) {
+            itemRef.current.style.transform = 'translateX(-100%)';
+            itemRef.current.style.opacity = '0';
+
+            setTimeout(() => {
+                onDelete(task.id);
+            }, 300);
+        } else {
+            onDelete(task.id);
+        }
+    };
+
+    const getPriorityColor = (priority: string) => {
+        const colors = {
+            high: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', darkBg: '#7f1d1d', darkText: '#fca5a5', darkBorder: '#991b1b' },
+            medium: { bg: '#fffbeb', text: '#d97706', border: '#fed7aa', darkBg: '#78350f', darkText: '#fdba74', darkBorder: '#92400e' },
+            low: { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0', darkBg: '#14532d', darkText: '#4ade80', darkBorder: '#15803d' }
+        };
+
+        const color = colors[priority as keyof typeof colors] || colors.medium;
+        return theme === 'dark'
+            ? { backgroundColor: color.darkBg, color: color.darkText, borderColor: color.darkBorder }
+            : { backgroundColor: color.bg, color: color.text, borderColor: color.border };
+    };
+
+    const formatDueDate = (dueDate: string) => {
+        const date = new Date(dueDate);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        if (date.toDateString() === today.toDateString()) {
+            return 'Today';
+        } else if (date.toDateString() === tomorrow.toDateString()) {
+            return 'Tomorrow';
+        } else {
+            return date.toLocaleDateString();
+        }
+    };
+
+    const isOverdue = (dueDate: string) => {
+        return new Date(dueDate) < new Date() && !task.completed;
+    };
+
+    const priorityStyle = getPriorityColor(task.priority);
+
+    return (
+        <div
+            ref={itemRef}
+            className={`task-item ${isDragging ? 'dragging' : ''}`}
+            style={{
+                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                borderBottom: `1px solid ${theme === 'dark' ? '#4b5563' : '#e5e7eb'}`,
+                transition: 'all 0.3s ease-in-out',
+                opacity: isDragging ? 0.6 : 1,
+                transform: isDragging ? 'rotate(3deg)' : 'none'
+            }}
+        >
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                    {/* Drag Handle */}
+                    <div
+                        style={{
+                            cursor: 'grab',
+                            padding: '8px 4px',
+                            color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+                            userSelect: 'none',
+                            fontSize: '16px',
+                            touchAction: 'none' 
+                        }}
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onTouchStart={(e) => e.stopPropagation()} 
+                    >
+                        ⋮⋮
+                    </div>
+
+                    <div
+                        className={justCompleted && !task.completed ? 'checkmark-animation' : ''}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={handleToggle}
+                            style={{
+                                height: '20px',
+                                width: '20px',
+                                color: '#3b82f6',
+                                border: `2px solid ${theme === 'dark' ? '#6b7280' : '#d1d5db'}`,
+                                borderRadius: '50%',
+                                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease-in-out'
+                            }}
+                        />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        {isEditing ? (
+                            <input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onBlur={handleSave}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    border: `2px solid #3b82f6`,
+                                    borderRadius: '8px',
+                                    backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+                                    color: theme === 'dark' ? '#f9fafb' : '#111827',
+                                    outline: 'none',
+                                    transition: 'all 0.2s ease-in-out'
+                                }}
+                                autoFocus
+                            />
+                        ) : (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'flex-start',
+                                gap: '8px'
+                            }}>
+                                <span
+                                    style={{
+                                        display: 'block',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        textDecoration: task.completed ? 'line-through' : 'none',
+                                        color: task.completed
+                                            ? (theme === 'dark' ? '#6b7280' : '#9ca3af')
+                                            : (theme === 'dark' ? '#f9fafb' : '#111827'),
+                                        transition: 'all 0.2s ease-in-out'
+                                    }}
+                                    onDoubleClick={() => setIsEditing(true)}
+                                >
+                                    {task.title}
+                                </span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    <span style={{
+                                        padding: '4px 8px',
+                                        fontSize: '12px',
+                                        fontWeight: '500',
+                                        borderRadius: '12px',
+                                        border: '1px solid',
+                                        transition: 'all 0.2s ease-in-out',
+                                        ...priorityStyle
+                                    }}>
+                                        {task.priority}
+                                    </span>
+                                    {task.dueDate && (
+                                        <span style={{
+                                            padding: '4px 8px',
+                                            fontSize: '12px',
+                                            borderRadius: '12px',
+                                            border: '1px solid',
+                                            transition: 'all 0.2s ease-in-out',
+                                            backgroundColor: isOverdue(task.dueDate)
+                                                ? (theme === 'dark' ? '#7f1d1d' : '#fef2f2')
+                                                : (theme === 'dark' ? '#1e3a8a' : '#eff6ff'),
+                                            color: isOverdue(task.dueDate)
+                                                ? (theme === 'dark' ? '#fca5a5' : '#dc2626')
+                                                : (theme === 'dark' ? '#93c5fd' : '#2563eb'),
+                                            borderColor: isOverdue(task.dueDate)
+                                                ? (theme === 'dark' ? '#991b1b' : '#fecaca')
+                                                : (theme === 'dark' ? '#1e40af' : '#dbeafe')
+                                        }}>
+                                            {isOverdue(task.dueDate) ? '⚠️ ' : ''}
+                                            {formatDueDate(task.dueDate)}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}>
+                    <button
+                        onClick={() => setIsEditing(!isEditing)}
+                        style={{
+                            color: theme === 'dark' ? '#9ca3af' : '#d1d5db',
+                            padding: '8px',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s ease-in-out'
+                        }}
+                        className="pulse-once"
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.color = theme === 'dark' ? '#3b82f6' : '#2563eb';
+                            e.currentTarget.style.backgroundColor = theme === 'dark' ? '#1f2937' : '#f3f4f6';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.color = theme === 'dark' ? '#9ca3af' : '#d1d5db';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        title="Edit task"
+                    >
+                        ✏️
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        style={{
+                            color: theme === 'dark' ? '#9ca3af' : '#d1d5db',
+                            padding: '8px',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s ease-in-out'
+                        }}
+                        className="pulse-once"
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.backgroundColor = theme === 'dark' ? '#7f1d1d' : '#fef2f2';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.color = theme === 'dark' ? '#9ca3af' : '#d1d5db';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        title="Delete task"
+                    >
+                        🗑️
+                    </button>
+                </div>
+            </div>
         </div>
-
-        <div className="flex items-center space-x-2 ml-4">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
-            title="Edit task"
-          >
-            ✏️
-          </button>
-          <button
-            onClick={() => onDelete(task.id)}
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-            title="Delete task"
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-    </li>
-  );
+    );
 };
 
 export default TaskItem;

@@ -33,7 +33,7 @@ app.get('/api/tasks', async (req, res) => {
 // POST new task
 app.post('/api/tasks', async (req, res) => {
   try {
-    const { title, priority = 'medium' } = req.body;
+    const { title, priority = 'medium', dueDate } = req.body;
 
     if (!title || title.trim() === '') {
       return res.status(400).json({ error: 'Title is required' });
@@ -43,6 +43,7 @@ app.post('/api/tasks', async (req, res) => {
       data: {
         title: title.trim(),
         priority,
+        dueDate: dueDate ? new Date(dueDate) : null, 
       }
     });
 

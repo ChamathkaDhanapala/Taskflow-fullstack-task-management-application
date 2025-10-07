@@ -1,14 +1,17 @@
-import  { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import TaskInput from "./components/TaskInput";
-import TaskList from "./components/TaskList";
+import AnimatedTaskList from "./components/AnimatedTaskList";
+import type { Task, FilterType, SortType } from "./types/task";
+import { useTheme } from "./contexts/ThemeContext";
 import { taskApi } from "./services/taskApi";
-import type { Task, FilterType, SortType } from "./types/task"; 
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [sort, setSort] = useState<SortType>('newest');
   const [loading, setLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Load tasks from backend
   useEffect(() => {
@@ -30,7 +33,7 @@ function App() {
   const addTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
     try {
       const newTask = await taskApi.createTask(title, priority);
-      setTasks(prev => [newTask, ...prev]);
+      setTasks((prev) => [newTask, ...prev]);
     } catch (error) {
       console.error('Failed to create task:', error);
     }
@@ -39,7 +42,7 @@ function App() {
   const toggleTask = async (id: string) => {
     try {
       const updatedTask = await taskApi.toggleTask(id);
-      setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      setTasks((prev) => prev.map(t => t.id === id ? updatedTask : t));
     } catch (error) {
       console.error('Failed to toggle task:', error);
     }
@@ -48,7 +51,7 @@ function App() {
   const deleteTask = async (id: string) => {
     try {
       await taskApi.deleteTask(id);
-      setTasks(prev => prev.filter(t => t.id !== id));
+      setTasks((prev) => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error('Failed to delete task:', error);
     }
@@ -57,17 +60,25 @@ function App() {
   const editTask = async (id: string, updates: Partial<Task>) => {
     try {
       const updatedTask = await taskApi.updateTask(id, updates);
-      setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
+      setTasks((prev) => prev.map(t => t.id === id ? updatedTask : t));
     } catch (error) {
       console.error('Failed to update task:', error);
     }
   };
 
   const clearCompleted = () => {
-    tasks.forEach(task => {
-      if (task.completed) {
-        deleteTask(task.id);
-      }
+    const completedTasks = tasks.filter(task => task.completed);
+    completedTasks.forEach(task => {
+      deleteTask(task.id);
+    });
+  };
+
+  const reorderTasks = (fromIndex: number, toIndex: number) => {
+    setTasks(prev => {
+      const newTasks = [...prev];
+      const [movedTask] = newTasks.splice(fromIndex, 1);
+      newTasks.splice(toIndex, 0, movedTask);
+      return newTasks;
     });
   };
 
@@ -100,51 +111,289 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading tasks...</p>
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            animation: 'spin 1s linear infinite',
+            borderRadius: '50%',
+            height: '3rem',
+            width: '3rem',
+            borderBottom: '2px solid #3b82f6',
+            margin: '0 auto'
+          }}></div>
+          <p style={{
+            marginTop: '1rem',
+            color: theme === 'dark' ? '#d1d5db' : '#6b7280'
+          }}>
+            Loading tasks...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">TaskFlow</h1>
-          <p className="text-gray-600">Manage your tasks efficiently</p>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+      padding: '16px 12px'
+    }}>
+      <div style={{
+        maxWidth: '42rem',
+        margin: '0 auto',
+        width: '100%'
+      }}>
+        {/* Mobile Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Mobile Menu Button - Hidden on desktop */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              style={{
+                padding: '8px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: theme === 'dark' ? '#f9fafb' : '#111827',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '44px'
+              }}
+            >
+              ☰
+            </button>
+            <h1 style={{
+              fontSize: '28px',
+              fontWeight: 'bold',
+              color: theme === 'dark' ? '#f9fafb' : '#111827'
+            }}>
+              TaskFlow
+            </h1>
+          </div>
+
+          <button
+            onClick={toggleTheme}
+            style={{
+              padding: '8px',
+              borderRadius: '8px',
+              backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+              border: 'none',
+              cursor: 'pointer',
+              minHeight: '44px',
+              minWidth: '44px'
+            }}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">{tasks.length}</div>
-            <div className="text-sm text-gray-600">Total</div>
+        <p style={{
+          color: theme === 'dark' ? '#d1d5db' : '#6b7280',
+          marginBottom: '24px',
+          textAlign: 'center'
+        }}>
+          Manage your tasks efficiently
+        </p>
+
+        {/* Mobile Filters Menu */}
+        {isMobileMenuOpen && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)',
+            zIndex: 50,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+              borderRadius: '12px',
+              padding: '24px',
+              marginTop: 'auto',
+              marginBottom: 'auto'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  color: theme === 'dark' ? '#f9fafb' : '#111827'
+                }}>
+                  Filters & Sort
+                </h2>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  style={{
+                    padding: '8px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+                    cursor: 'pointer',
+                    minHeight: '44px',
+                    minWidth: '44px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: theme === 'dark' ? '#d1d5db' : '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Filter:
+                  </label>
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value as FilterType)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                      borderRadius: '8px',
+                      backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                      color: theme === 'dark' ? '#f9fafb' : '#111827',
+                      outline: 'none',
+                      fontSize: '16px',
+                      minHeight: '44px'
+                    }}
+                  >
+                    <option value="all">All Tasks</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: theme === 'dark' ? '#d1d5db' : '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Sort by:
+                  </label>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as SortType)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                      borderRadius: '8px',
+                      backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                      color: theme === 'dark' ? '#f9fafb' : '#111827',
+                      outline: 'none',
+                      fontSize: '16px',
+                      minHeight: '44px'
+                    }}
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="priority">Priority</option>
+                    <option value="alphabetical">Alphabetical</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{activeTasksCount}</div>
-            <div className="text-sm text-gray-600">Active</div>
-          </div>
-          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-gray-600">{completedTasksCount}</div>
-            <div className="text-sm text-gray-600">Done</div>
-          </div>
+        )}
+
+        {/* Stats - Responsive Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '12px',
+          marginBottom: '24px'
+        }}>
+          {[
+            { value: tasks.length, label: 'Total', color: '#2563eb' },
+            { value: activeTasksCount, label: 'Active', color: '#16a34a' },
+            { value: completedTasksCount, label: 'Done', color: '#6b7280' }
+          ].map((stat, index) => (
+            <div
+              key={index}
+              style={{
+                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                borderRadius: '8px',
+                padding: '16px 8px',
+                textAlign: 'center',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+              }}
+            >
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: stat.color
+              }}>
+                {stat.value}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: theme === 'dark' ? '#d1d5db' : '#6b7280'
+              }}>
+                {stat.label}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Task Input */}
         <TaskInput onAdd={addTask} />
 
-        {/* Filters and Sort */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Filter:</label>
+        {/* Desktop Filters - Hidden on mobile, shown on desktop */}
+        <div style={{
+          display: 'none',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: theme === 'dark' ? '#d1d5db' : '#374151'
+            }}>
+              Filter:
+            </label>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as FilterType)}
-              className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{
+                padding: '8px 12px',
+                border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                borderRadius: '8px',
+                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                color: theme === 'dark' ? '#f9fafb' : '#111827',
+                outline: 'none'
+              }}
             >
               <option value="all">All Tasks</option>
               <option value="active">Active</option>
@@ -152,12 +401,25 @@ function App() {
             </select>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: theme === 'dark' ? '#d1d5db' : '#374151'
+            }}>
+              Sort by:
+            </label>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortType)}
-              className="px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{
+                padding: '8px 12px',
+                border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                borderRadius: '8px',
+                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                color: theme === 'dark' ? '#f9fafb' : '#111827',
+                outline: 'none'
+              }}
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -166,28 +428,45 @@ function App() {
             </select>
           </div>
         </div>
-
         {/* Task List */}
-        <div className="mb-6">
-          <TaskList
+        <div style={{ marginBottom: '24px' }}>
+          <AnimatedTaskList
             tasks={sortedTasks}
             onToggle={toggleTask}
             onDelete={deleteTask}
             onEdit={editTask}
+            onReorder={reorderTasks}
           />
         </div>
 
         {/* Footer Actions */}
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <span className="text-gray-600">
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <span style={{
+            color: theme === 'dark' ? '#d1d5db' : '#6b7280',
+            textAlign: 'center'
+          }}>
             {activeTasksCount} task{activeTasksCount !== 1 ? 's' : ''} left
           </span>
-          
-          <div className="flex gap-2">
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
             <button
               onClick={clearCompleted}
               disabled={completedTasksCount === 0}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              style={{
+                padding: '12px 16px',
+                fontSize: '14px',
+                color: theme === 'dark' ? '#d1d5db' : '#6b7280',
+                border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                borderRadius: '8px',
+                backgroundColor: 'transparent',
+                cursor: completedTasksCount === 0 ? 'not-allowed' : 'pointer',
+                opacity: completedTasksCount === 0 ? 0.5 : 1,
+                minHeight: '44px'
+              }}
             >
               Clear Completed
             </button>

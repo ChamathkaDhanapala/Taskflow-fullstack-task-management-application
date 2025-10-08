@@ -18,25 +18,29 @@ const NotificationSettings: React.FC = () => {
     }
   };
 
-  const handleToggleNotifications = async () => {
-    if (isEnabled) {
-      // Disable notifications
-      setIsEnabled(false);
+const handleToggleNotifications = async () => {
+  if (isEnabled) {
+    // Disable notifications
+    setIsEnabled(false);
+    console.log('Notifications disabled');
+  } else {
+    // Enable notifications
+    const granted = await notificationService.requestPermission();
+    setIsEnabled(granted);
+    setPermission(granted ? 'granted' : 'denied');
+    
+    if (granted) {
+      // Show welcome notification
+      await notificationService.showNotification('🔔 TaskFlow Notifications Enabled', {
+        body: 'You will now receive reminders for upcoming task deadlines!',
+        icon: '/favicon.ico',
+        tag: 'notifications-enabled' // Prevent duplicates
+      });
     } else {
-      // Enable notifications
-      const granted = await notificationService.requestPermission();
-      setIsEnabled(granted);
-      setPermission(granted ? 'granted' : 'denied');
-      
-      if (granted) {
-        // Show test notification
-        await notificationService.showNotification('🔔 TaskFlow Notifications', {
-          body: 'You will now receive reminders for upcoming tasks!',
-          icon: '/favicon.ico'
-        });
-      }
+      notificationService.showPermissionGuide();
     }
-  };
+  }
+};
 
   const getPermissionText = () => {
     switch (permission) {

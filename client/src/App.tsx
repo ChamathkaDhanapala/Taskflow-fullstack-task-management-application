@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import TaskInput from "./components/TaskInput";
 import AnimatedTaskList from "./components/AnimatedTaskList";
+//import NotificationSettings from "./components/NotificationSettings";
 import type { Task, FilterType, SortType } from "./types/task";
 import { useTheme } from "./contexts/ThemeContext";
 import { taskApi } from "./services/taskApi";
+import { notificationService } from "./services/notificationService";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -12,11 +14,22 @@ function App() {
   const [sort, setSort] = useState<SortType>('newest');
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  //const [showNotificationSettings, setShowNotificationSettings] = useState(false);
 
   // Load tasks from backend
   useEffect(() => {
     loadTasks();
   }, []);
+
+  useEffect(() => {
+    if (tasks.length > 0) {
+      notificationService.startDeadlineChecker(tasks, 5 * 60 * 1000);
+    }
+
+    return () => {
+      notificationService.stopDeadlineChecker();
+    };
+  }, [tasks]);
 
   const loadTasks = async () => {
     try {
@@ -30,10 +43,16 @@ function App() {
     }
   };
 
-  const addTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
+  const addTask = async (title: string, priority: 'low' | 'medium' | 'high', dueDate?: string) => {
     try {
-      const newTask = await taskApi.createTask(title, priority);
+      const newTask = await taskApi.createTask(title, priority, dueDate);
       setTasks((prev) => [newTask, ...prev]);
+
+      if (dueDate) {
+        setTimeout(() => {
+          notificationService.checkTaskDeadline(newTask);
+        }, 1000);
+      }
     } catch (error) {
       console.error('Failed to create task:', error);
     }

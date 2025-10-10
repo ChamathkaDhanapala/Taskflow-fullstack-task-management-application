@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import TaskInput from "./components/TaskInput";
 import AnimatedTaskList from "./components/AnimatedTaskList";
-//import NotificationSettings from "./components/NotificationSettings";
 import type { Task, FilterType, SortType } from "./types/task";
 import { useTheme } from "./contexts/ThemeContext";
 import { taskApi } from "./services/taskApi";
 import { notificationService } from "./services/notificationService";
+import { useTags } from './hooks/useTags';
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -14,7 +14,10 @@ function App() {
   const [sort, setSort] = useState<SortType>('newest');
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  //const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  
+  // Move hooks inside the component
+  const { tags } = useTags();
 
   // Load tasks from backend
   useEffect(() => {
@@ -43,9 +46,9 @@ function App() {
     }
   };
 
-  const addTask = async (title: string, priority: 'low' | 'medium' | 'high', dueDate?: string) => {
+  const addTask = async (title: string, priority: 'low' | 'medium' | 'high', dueDate?: string, tags: string[] = []) => {
     try {
-      const newTask = await taskApi.createTask(title, priority, dueDate);
+      const newTask = await taskApi.createTask(title, priority, dueDate, tags);
       setTasks((prev) => [newTask, ...prev]);
 
       if (dueDate) {
@@ -105,6 +108,12 @@ function App() {
   const filteredTasks = tasks.filter(task => {
     if (filter === 'active') return !task.completed;
     if (filter === 'completed') return task.completed;
+    if (filter === 'overdue') {
+      return !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
+    }
+    if (filter === 'tag' && selectedTagFilter) {
+      return task.tags.includes(selectedTagFilter);
+    }
     return true;
   });
 
@@ -176,7 +185,6 @@ function App() {
           marginBottom: '24px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Mobile Menu Button - Hidden on desktop */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               style={{
@@ -290,7 +298,12 @@ function App() {
                   </label>
                   <select
                     value={filter}
-                    onChange={(e) => setFilter(e.target.value as FilterType)}
+                    onChange={(e) => {
+                      setFilter(e.target.value as FilterType);
+                      if (e.target.value !== 'tag') {
+                        setSelectedTagFilter(null);
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '12px 16px',
@@ -306,8 +319,47 @@ function App() {
                     <option value="all">All Tasks</option>
                     <option value="active">Active</option>
                     <option value="completed">Completed</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="tag">By Tag</option>
                   </select>
                 </div>
+
+                {/* Tag Filter - Only show when filter is 'tag' */}
+                {filter === 'tag' && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: theme === 'dark' ? '#d1d5db' : '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      Select Tag:
+                    </label>
+                    <select
+                      value={selectedTagFilter || ''}
+                      onChange={(e) => setSelectedTagFilter(e.target.value || null)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                        borderRadius: '8px',
+                        backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                        color: theme === 'dark' ? '#f9fafb' : '#111827',
+                        outline: 'none',
+                        fontSize: '16px',
+                        minHeight: '44px'
+                      }}
+                    >
+                      <option value="">Select a tag...</option>
+                      {tags.map(tag => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label style={{
@@ -387,7 +439,7 @@ function App() {
         {/* Task Input */}
         <TaskInput onAdd={addTask} />
 
-        {/* Desktop Filters - Hidden on mobile, shown on desktop */}
+        {/* Desktop Filters - Update this section too */}
         <div style={{
           display: 'none',
           flexWrap: 'wrap',
@@ -404,7 +456,12 @@ function App() {
             </label>
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as FilterType)}
+              onChange={(e) => {
+                setFilter(e.target.value as FilterType);
+                if (e.target.value !== 'tag') {
+                  setSelectedTagFilter(null);
+                }
+              }}
               style={{
                 padding: '8px 12px',
                 border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
@@ -417,8 +474,41 @@ function App() {
               <option value="all">All Tasks</option>
               <option value="active">Active</option>
               <option value="completed">Completed</option>
+              <option value="overdue">Overdue</option>
+              <option value="tag">By Tag</option>
             </select>
           </div>
+
+          {filter === 'tag' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{
+                fontSize: '14px',
+                fontWeight: '500',
+                color: theme === 'dark' ? '#d1d5db' : '#374151'
+              }}>
+                Tag:
+              </label>
+              <select
+                value={selectedTagFilter || ''}
+                onChange={(e) => setSelectedTagFilter(e.target.value || null)}
+                style={{
+                  padding: '8px 12px',
+                  border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                  borderRadius: '8px',
+                  backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                  color: theme === 'dark' ? '#f9fafb' : '#111827',
+                  outline: 'none'
+                }}
+              >
+                <option value="">Select a tag...</option>
+                {tags.map(tag => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <label style={{
@@ -447,6 +537,7 @@ function App() {
             </select>
           </div>
         </div>
+
         {/* Task List */}
         <div style={{ marginBottom: '24px' }}>
           <AnimatedTaskList

@@ -8,14 +8,28 @@ export const taskApi = {
     if (!response.ok) throw new Error('Failed to fetch tasks');
     return response.json();
   },
-  
-  async createTask(title: string, priority: 'low' | 'medium' | 'high', dueDate?: string): Promise<Task> {
+
+  async createTask(title: string, priority: 'low' | 'medium' | 'high', dueDate?: string, tags: string[] = []): Promise<Task> {
     const response = await fetch(`${API_BASE}/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, priority, dueDate })
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title,
+        priority,
+        dueDate,
+        tags,
+        completed: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
     });
-    if (!response.ok) throw new Error('Failed to create task');
+
+    if (!response.ok) {
+      throw new Error('Failed to create task');
+    }
+
     return response.json();
   },
 

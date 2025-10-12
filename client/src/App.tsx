@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "./contexts/AuthContext";
+import { useTheme } from "./contexts/ThemeContext";
 import TaskInput from "./components/TaskInput";
 import AnimatedTaskList from "./components/AnimatedTaskList";
+import { Login } from "./components/Login";
+import { Register } from "./components/Register";
 import type { Task, FilterType, SortType } from "./types/task";
-import { useTheme } from "./contexts/ThemeContext";
 import { taskApi } from "./services/taskApi";
 import { notificationService } from "./services/notificationService";
 import { useTags } from './hooks/useTags';
 
 function App() {
+  const { user, loading: authLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -15,24 +19,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
-  
-  // Move hooks inside the component
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+
   const { tags } = useTags();
 
-  // Load tasks from backend
+  // Load tasks when user is authenticated
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (user) {
+      loadTasks();
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (tasks.length > 0) {
+    if (user && tasks.length > 0) {
       notificationService.startDeadlineChecker(tasks, 5 * 60 * 1000);
     }
 
     return () => {
       notificationService.stopDeadlineChecker();
     };
-  }, [tasks]);
+  }, [tasks, user]);
 
   const loadTasks = async () => {
     try {
@@ -137,7 +143,7 @@ function App() {
   const activeTasksCount = tasks.filter(t => !t.completed).length;
   const completedTasksCount = tasks.filter(t => t.completed).length;
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -159,13 +165,30 @@ function App() {
             marginTop: '1rem',
             color: theme === 'dark' ? '#d1d5db' : '#6b7280'
           }}>
-            Loading tasks...
+            Loading...
           </p>
         </div>
       </div>
     );
   }
-
+  if (!user) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: theme === 'dark' ? '#1f2937' : '#f3f4f6',
+        padding: '16px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {authView === 'login' ? (
+          <Login onSwitchToRegister={() => setAuthView('register')} />
+        ) : (
+          <Register onSwitchToLogin={() => setAuthView('login')} />
+        )}
+      </div>
+    );
+  }
   return (
     <div style={{
       minHeight: '100vh',
@@ -177,7 +200,7 @@ function App() {
         margin: '0 auto',
         width: '100%'
       }}>
-        {/* Mobile Header */}
+        {/*  Header with User Info */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -207,24 +230,47 @@ function App() {
             }}>
               TaskFlow
             </h1>
+            <p style={{
+              fontSize: '14px',
+              color: theme === 'dark' ? '#d1d5db' : '#6b7280',
+              margin: 0
+            }}>
+              Welcome, {user.name}
+            </p>
           </div>
 
-          <button
-            onClick={toggleTheme}
-            style={{
-              padding: '8px',
-              borderRadius: '8px',
-              backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-              border: 'none',
-              cursor: 'pointer',
-              minHeight: '44px',
-              minWidth: '44px'
-            }}
-            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={logout}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                color: theme === 'dark' ? '#f9fafb' : '#111827',
+                border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+                borderRadius: '6px',
+                backgroundColor: 'transparent',
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
+            <button
+              onClick={toggleTheme}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                border: 'none',
+                cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '44px'
+              }}
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
         </div>
 
         <p style={{

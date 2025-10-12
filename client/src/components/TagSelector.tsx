@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Tag } from '../types/task';
 import { TagBadge } from './TagBadge';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface TagSelectorProps {
   availableTags: Tag[];
@@ -16,8 +17,8 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
   maxTags = 3
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   const selectedTags = availableTags.filter(tag => selectedTagIds.includes(tag.id));
   const availableTagsFiltered = availableTags.filter(tag => !selectedTagIds.includes(tag.id));
@@ -42,6 +43,34 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
     }
   };
 
+  const dropdownStyle = {
+    position: 'absolute' as const,
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+    border: `1px solid ${theme === 'dark' ? '#4b5563' : '#e5e7eb'}`,
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    zIndex: 10,
+    padding: '12px'
+  };
+
+  const addButtonStyle = {
+    padding: '6px 12px',
+    fontSize: '14px',
+    border: `1px dashed ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+    borderRadius: '16px',
+    color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+    background: 'none',
+    cursor: 'pointer'
+  };
+
+  const emptyTextStyle = {
+    color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+    fontSize: '14px'
+  };
+
   return (
     <div ref={dropdownRef} style={{ position: 'relative' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
@@ -56,15 +85,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
         {selectedTagIds.length < maxTags && (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            style={{
-              padding: '6px 12px',
-              fontSize: '14px',
-              border: '1px dashed #d1d5db',
-              borderRadius: '16px',
-              color: '#6b7280',
-              background: 'none',
-              cursor: 'pointer'
-            }}
+            style={addButtonStyle}
           >
             + Add Tag
           </button>
@@ -72,19 +93,8 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
       </div>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          backgroundColor: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          zIndex: 10,
-          padding: '12px'
-        }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+        <div style={dropdownStyle}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {availableTagsFiltered.map(tag => (
               <TagBadge
                 key={tag.id}
@@ -95,7 +105,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
               />
             ))}
             {availableTagsFiltered.length === 0 && (
-              <span style={{ color: '#6b7280', fontSize: '14px' }}>
+              <span style={emptyTextStyle}>
                 All tags selected
               </span>
             )}

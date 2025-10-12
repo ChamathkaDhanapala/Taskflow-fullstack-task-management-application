@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTags } from '../hooks/useTags';
 import { TagSelector } from './TagSelector';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface TaskInputProps {
   onAdd: (title: string, priority: 'low' | 'medium' | 'high', dueDate?: string, tags?: string[]) => void;
@@ -12,6 +13,7 @@ const TaskInput: React.FC<TaskInputProps> = ({ onAdd }) => {
   const [dueDate, setDueDate] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { tags } = useTags();
+  const { theme } = useTheme();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,28 +26,58 @@ const TaskInput: React.FC<TaskInputProps> = ({ onAdd }) => {
     }
   };
 
+  // Theme-based styles
+  const containerStyle = {
+    backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+    color: theme === 'dark' ? '#f9fafb' : '#111827',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+    marginBottom: '24px'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 16px',
+    border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+    borderRadius: '8px',
+    fontSize: '16px',
+    outline: 'none',
+    backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+    color: theme === 'dark' ? '#f9fafb' : '#111827'
+  };
+
+  const selectStyle = {
+    padding: '8px 12px',
+    border: `1px solid ${theme === 'dark' ? '#4b5563' : '#d1d5db'}`,
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff',
+    color: theme === 'dark' ? '#f9fafb' : '#111827',
+    outline: 'none'
+  };
+
+  const buttonStyle = {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    cursor: title.trim() ? 'pointer' : 'not-allowed',
+    opacity: title.trim() ? 1 : 0.5
+  };
+
   return (
-    <form onSubmit={handleSubmit} style={{
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-      marginBottom: '24px'
-    }}>
+    <form onSubmit={handleSubmit} style={containerStyle}>
       <div style={{ marginBottom: '16px' }}>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a new task..."
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            border: '1px solid #d1d5db',
-            borderRadius: '8px',
-            fontSize: '16px',
-            outline: 'none'
-          }}
+          style={inputStyle}
         />
       </div>
 
@@ -53,12 +85,7 @@ const TaskInput: React.FC<TaskInputProps> = ({ onAdd }) => {
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}
-          style={{
-            padding: '8px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '14px'
-          }}
+          style={selectStyle}
         >
           <option value="low">Low Priority</option>
           <option value="medium">Medium Priority</option>
@@ -69,12 +96,7 @@ const TaskInput: React.FC<TaskInputProps> = ({ onAdd }) => {
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            fontSize: '14px'
-          }}
+          style={selectStyle}
         />
       </div>
 
@@ -89,17 +111,7 @@ const TaskInput: React.FC<TaskInputProps> = ({ onAdd }) => {
       <button
         type="submit"
         disabled={!title.trim()}
-        style={{
-          width: '100%',
-          padding: '12px',
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          fontSize: '16px',
-          cursor: title.trim() ? 'pointer' : 'not-allowed',
-          opacity: title.trim() ? 1 : 0.5
-        }}
+        style={buttonStyle}
       >
         Add Task
       </button>
